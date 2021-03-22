@@ -1,0 +1,79 @@
+---
+title: "Sazonalidade das vazões em todas as bacias"
+author: "ADS"
+date: "2/11/2021"
+output: html_document
+---
+
+# Em construção
+
+Carregar pacotes
+```{r}
+pacotes <- c(
+   "HEobs",
+   "tidyverse",
+   "raster",
+   "rio"
+)
+easypackages::libraries(pacotes)
+```
+
+Baixar e importar/exportar dados de vazão
+```{r}
+data_link <- "https://www.dropbox.com/s/d40adhw66uwueet/VazoesNaturaisONS_D_87UHEsDirceuAssis_2018.dat?dl=1"
+qnat_meta <- extract_metadata(
+   data_link,
+   informative = TRUE
+)
+qnat <- import_qnat(
+   data_link,
+   complete = TRUE,
+   add_stn = TRUE
+)
+glimpse(qnat)
+
+nome_arquivo <- "vazoes-naturais-ons-assis-2018"
+qnat_file <- paste0(nome_arquivo, ".tsv")
+export(
+   qnat,
+   file = qnat_file,
+   na = "-999")
+```
+
+# Manipulação dos dados - construção do código pra gerar a contribuição mensal para cada bacia
+```{r}
+arrumar_dados <- qnat %>%
+   separate(
+      .,
+      date,
+      sep = "-",
+      into = c("ano", "mes", "dia")
+   ) %>%
+   select(name_stn, code_stn, id, dia, mes, ano, qnat)
+
+# arrumar_dados <- arrumar_dados %>%
+#    pivot_longer(
+#     .,
+#     cols = ano, qnat,
+#     names_to = "ano",
+#     values_to = "qnat"
+#   )
+filter(
+  arrumar_dados,
+  is.na(arrumar_dados$qnat)
+)
+dados_jan <- arrumar_dados %>%
+   filter(mes == "01")
+
+total_obs <- pull(dados_jan %>% count(mes))
+vazao_med_jan <- dados_jan %>%
+   filter(id == "1") %>%
+   # filter(ano == "1931") %>%
+   filter(!is.na(qnat)) %>%
+   mutate(
+      .,
+      vazao_jan = cumsum(qnat) #buscar formas de somar por ano
+   )
+
+```
+
